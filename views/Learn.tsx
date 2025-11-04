@@ -758,7 +758,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
           showsVerticalScrollIndicator={true}>
           <RenderHTML
             contentWidth={contentWidth}
-            source={{ html: `${currentIndex + 1}/${questions.length}【${currentQuestion.questiontype} 】${currentQuestion.question}` }}
+            source={{ html: `${currentIndex + 1}/${questions.length}【${currentQuestion.questiontype}】${currentQuestion.question}` }}
             tagsStyles={questionStyle}
           />
         </ScrollView>
@@ -840,7 +840,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
           )}
 
           {currentQuestion.explain && (
-            <View style={styles.questionSection}>
+            <View style={styles.analysisSection}>
               <Text style={[styles.sectionLabel, isDarkMode && styles.textDark]}>
                 解析:
               </Text>
@@ -971,7 +971,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
 
 
                 {item.explain && (item.type !== '主观题' || showSubjectiveAnswer) && (
-                  <View style={styles.questionSection}>
+                  <View style={styles.analysisSection}>
                     <RenderHTML
                       contentWidth={contentWidth}
                       source={{ html: "解析:" + item.explain }}
@@ -1169,10 +1169,17 @@ const styles = StyleSheet.create({
   },
   headerBackButton: {
     minWidth: 60,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  headerBackButtonDark: {},
+  headerBackButtonDark: {
+    backgroundColor: '#0A84FF',
+  },
   headerBackButtonText: {
-    color: '#007AFF',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1266,6 +1273,9 @@ const styles = StyleSheet.create({
   },
   questionSection: {
     marginTop: 10
+  },
+  analysisSection: {
+    marginTop: 100
   },
   sectionLabel: {
     fontSize: 14,
