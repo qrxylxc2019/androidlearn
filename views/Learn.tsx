@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,10 @@ import {
   ToastAndroid,
   Animated,
   TextInput,
+  PanResponder,
 } from 'react-native';
 import RenderHTML from 'react-native-render-html';
+import LinearGradient from 'react-native-linear-gradient';
 import { Question, Option, Subject, ExamQuestion, ExamItem, SubQuestion } from '../types';
 
 const { StudentDatabaseModule } = NativeModules;
@@ -32,7 +34,7 @@ interface LearnProps {
 
 export default function Learn({ subject, subjectIds, questionCount = 20, repeatCount = 5, onBack, isCollectionMode = false, questionType = '客观题' }: LearnProps) {
   const isDarkMode = useColorScheme() === 'dark';
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [examQuestions, setExamQuestions] = useState<ExamQuestion[]>([]);
   const [examItems, setExamItems] = useState<Map<number, ExamItem[]>>(new Map());
@@ -53,6 +55,68 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   const [toastMessage, setToastMessage] = useState<string>('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const toastOpacity = useState(new Animated.Value(0))[0];
+
+  // 分隔条拖动相关状态 - 用于客观题
+  const [dividerPosition, setDividerPosition] = useState<number>(0.4); // 默认比例：0.4 (40%)
+  const [isDividerPressed, setIsDividerPressed] = useState<boolean>(false); // 分隔条是否被按下
+  const containerHeightRef = useRef<number>(0);
+  const startPositionRef = useRef<number>(0.4);
+  const currentPositionRef = useRef<number>(0.4); // 实时追踪当前位置
+  
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        // 记录开始拖动时的位置（使用实时位置）
+        startPositionRef.current = currentPositionRef.current;
+        setIsDividerPressed(true);
+        console.log('🟢 拖动开始，起始位置:', startPositionRef.current);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (containerHeightRef.current > 0) {
+          // 添加阻尼系数，让拖动更平滑（数值越大，移动越慢，越不敏感）
+          const dampingFactor = 1.5; // 可以调整这个值：1.5-3.0 之间
+          const rawPosition = startPositionRef.current + gestureState.dy / containerHeightRef.current;
+          
+          // 限制拖动范围：20% 到 80%
+          let newPosition = rawPosition;
+          if (rawPosition < 0.2) {
+            newPosition = 0.2;
+          } else if (rawPosition > 0.8) {
+            newPosition = 0.8;
+          }
+          
+          // 更新实时位置引用
+          currentPositionRef.current = newPosition;
+          setDividerPosition(newPosition);
+          
+          console.log('newPosition=========', newPosition);
+          console.log('startPositionRef.current=========', startPositionRef.current);
+          console.log('gestureState.dy=========', gestureState.dy);
+          console.log('containerHeightRef.current=========', containerHeightRef.current);
+          console.log('dampingFactor=========', dampingFactor);
+          console.log('=======================================')
+          console.log('                                   ')
+        }
+      },
+      onPanResponderRelease: () => {
+        // 拖动结束，使用实时位置作为下次的起始位置
+        console.log('🔴 拖动结束，最终位置:', currentPositionRef.current);
+        setIsDividerPressed(false);
+      },
+      onPanResponderTerminate: () => {
+        // 手势被中断时也要处理
+        console.log('⚠️ 拖动中断');
+        setIsDividerPressed(false);
+      },
+    })
+  ).current;
+
+  // 同步 dividerPosition 到 currentPositionRef
+  useEffect(() => {
+    currentPositionRef.current = dividerPosition;
+  }, [dividerPosition]);
 
   useEffect(() => {
     loadQuestions();
@@ -749,25 +813,49 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   // 渲染客观题
   const renderObjectiveQuestion = () => {
     if (!currentQuestion) return null;
+    
+    const dividerHeight = 24; // 分隔条高度
+    const topHeight = containerHeightRef.current * dividerPosition;
+    const bottomHeight = containerHeightRef.current * (1 - dividerPosition) - dividerHeight;
+    
     return (
-      <>
-        {/* 题目文本区域 - 固定高度可滚动 */}
-        <ScrollView
-          style={styles.questionScrollView}
-          contentContainerStyle={styles.questionScrollContent}
-          showsVerticalScrollIndicator={true}>
-          <RenderHTML
-            contentWidth={contentWidth}
-            source={{ html: `${currentIndex + 1}/${questions.length}【${currentQuestion.questiontype}】${currentQuestion.question}` }}
-            tagsStyles={questionStyle}
-          />
-        </ScrollView>
+      <View 
+        style={styles.resizableContainer}
+        onLayout={(event) => {
+          const { height } = event.nativeEvent.layout;
+          containerHeightRef.current = height;
+        }}>
+        {/* 题目文本区域 - 动态高度可滚动 */}
+        <View style={{ height: topHeight }}>
+          <ScrollView
+            style={styles.questionScrollView}
+            contentContainerStyle={styles.questionScrollContent}
+            showsVerticalScrollIndicator={true}>
+            <RenderHTML
+              contentWidth={contentWidth}
+              source={{ html: `${currentIndex + 1}/${questions.length}【${currentQuestion.questiontype}】${currentQuestion.question}` }}
+              tagsStyles={questionStyle}
+            />
+          </ScrollView>
+        </View>
 
-        {/* 选项、答案、解析区域 - 可滚动 */}
-        <ScrollView
-          style={styles.answersScrollView}
-          contentContainerStyle={styles.answersScrollContent}
-          showsVerticalScrollIndicator={true}>
+        {/* 可拖动分隔条 */}
+        <View {...panResponder.panHandlers}>
+          <LinearGradient
+            colors={isDividerPressed ? ['#FFD700', '#FFA500', '#FF8C00'] : ['#4A90E2', '#5B9FE3', '#6CAEE5']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.divider, isDarkMode && styles.dividerDark]}>
+            <View style={[styles.dividerHandle, isDividerPressed && styles.dividerHandlePressed]} />
+          </LinearGradient>
+        </View>
+
+        {/* 选项、答案、解析区域 - 动态高度可滚动 */}
+        <View style={{ height: bottomHeight }}>
+          <ScrollView
+            style={styles.answersScrollView}
+            contentContainerStyle={styles.answersScrollContent}
+            showsVerticalScrollIndicator={true}>
           {options.length > 0 && (
             <View>
               <View style={styles.optionsContainer}>
@@ -866,8 +954,9 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
               />
             </View>
           </View>
-        </ScrollView>
-      </>
+          </ScrollView>
+        </View>
+      </View>
     );
   };
 
@@ -1254,19 +1343,72 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
+  resizableContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
   questionScrollView: {
-    maxHeight: '30%',
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomWidth: 0,
   },
   questionScrollContent: {
     paddingBottom: 8,
+    paddingHorizontal: 4,
+  },
+  divider: {
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopWidth: 0.5,
+    borderBottomWidth: 0.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  dividerDark: {
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  dividerHandle: {
+    width: 60,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 2,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+    elevation: 2,
+  },
+  dividerHandlePressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    height: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  dividerText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  dividerTextDark: {
+    color: '#aaa',
   },
   answersScrollView: {
     flex: 1,
   },
   answersScrollContent: {
+    paddingHorizontal: 4,
   },
   htmlContainer: {
     marginBottom: 10,
