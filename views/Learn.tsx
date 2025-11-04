@@ -15,10 +15,13 @@ import {
   Animated,
   TextInput,
   PanResponder,
+  Modal,
 } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { Question, Option, Subject, ExamQuestion, ExamItem, SubQuestion } from '../types';
+import MathText from '../components/MathText';
 
 const { StudentDatabaseModule } = NativeModules;
 
@@ -49,6 +52,14 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   const [subSelectedOptions, setSubSelectedOptions] = useState<string[]>([]);
   const [isSubAnswerSubmitted, setIsSubAnswerSubmitted] = useState<boolean>(false);
   const [showSubjectiveAnswer, setShowSubjectiveAnswer] = useState<boolean>(false);
+
+  // 手写板相关状态
+  const [showHandwriting, setShowHandwriting] = useState<boolean>(false);
+  const [handwritingPaths, setHandwritingPaths] = useState<any[]>([]);
+  const [currentPath, setCurrentPath] = useState<any[]>([]);
+  const [strokeWidth, setStrokeWidth] = useState<number>(5);
+  const [strokeColor, setStrokeColor] = useState<string>('#000000');
+  const isDrawingRef = useRef<boolean>(false);
 
   // Toast 相关状态
   const [toastVisible, setToastVisible] = useState<boolean>(false);
@@ -117,6 +128,46 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   useEffect(() => {
     currentPositionRef.current = dividerPosition;
   }, [dividerPosition]);
+
+  // 手写板的 PanResponder
+  const handwritingPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        const { locationX, locationY } = evt.nativeEvent;
+        isDrawingRef.current = true;
+        setCurrentPath([{ x: locationX, y: locationY, timestamp: Date.now() }]);
+      },
+      onPanResponderMove: (evt) => {
+        if (!isDrawingRef.current) return;
+        const { locationX, locationY } = evt.nativeEvent;
+        setCurrentPath(prev => [...prev, { x: locationX, y: locationY, timestamp: Date.now() }]);
+      },
+      onPanResponderRelease: () => {
+        isDrawingRef.current = false;
+        if (currentPath.length > 0) {
+          setHandwritingPaths(prev => [...prev, { 
+            points: currentPath, 
+            color: strokeColor, 
+            width: strokeWidth 
+          }]);
+          setCurrentPath([]);
+        }
+      },
+      onPanResponderTerminate: () => {
+        isDrawingRef.current = false;
+        if (currentPath.length > 0) {
+          setHandwritingPaths(prev => [...prev, { 
+            points: currentPath, 
+            color: strokeColor, 
+            width: strokeWidth 
+          }]);
+          setCurrentPath([]);
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     loadQuestions();
@@ -831,10 +882,11 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
             style={styles.questionScrollView}
             contentContainerStyle={styles.questionScrollContent}
             showsVerticalScrollIndicator={true}>
-            <RenderHTML
+            <MathText
               contentWidth={contentWidth}
-              source={{ html: `${currentIndex + 1}/${questions.length}【${currentQuestion.questiontype}】${currentQuestion.question}` }}
-              tagsStyles={questionStyle}
+              html={`${currentIndex + 1}/${questions.length}【${currentQuestion.questiontype}】${currentQuestion.question}`}
+              fontSize={18}
+              lineHeight={25}
             />
           </ScrollView>
         </View>
@@ -898,24 +950,25 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
                         onPress={() => !isDeleted && toggleOption(option.label)}
                         activeOpacity={0.7}
                         disabled={isDeleted}>
-                        <Text
-                          style={[
-                            styles.optionLabel,
-                            isDarkMode && styles.textDark,
-                            showCorrect && styles.optionTextCorrect,
-                            isDeleted && styles.optionTextDeleted,
-                          ]}>
-                          {option.label}.
-                        </Text>
-                        <Text
-                          style={[
-                            styles.optionContent,
-                            isDarkMode && styles.textDark,
-                            showCorrect && styles.optionTextCorrect,
-                            isDeleted && styles.optionTextDeleted,
-                          ]}>
-                          {option.content}
-                        </Text>
+                        <View style={styles.optionLabelContainer}>
+                          <Text
+                            style={[
+                              styles.optionLabel,
+                              isDarkMode && styles.textDark,
+                              showCorrect && styles.optionTextCorrect,
+                              isDeleted && styles.optionTextDeleted,
+                            ]}>
+                            {option.label}.
+                          </Text>
+                        </View>
+                        <View style={styles.optionContentContainer}>
+                          <MathText
+                            contentWidth={contentWidth - 120}
+                            html={option.content}
+                            fontSize={19}
+                            lineHeight={20}
+                          />
+                        </View>
                         {showCorrect && (
                           <Text style={styles.optionIcon}>✓</Text>
                         )}
@@ -933,10 +986,11 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
                 解析:
               </Text>
               <View style={styles.htmlContainer}>
-                <RenderHTML
+                <MathText
                   contentWidth={contentWidth}
-                  source={{ html: currentQuestion.explain }}
-                  tagsStyles={explainStyle}
+                  html={currentQuestion.explain}
+                  fontSize={14}
+                  lineHeight={20}
                 />
               </View>
             </View>
@@ -947,10 +1001,12 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
               答案:
             </Text>
             <View style={styles.htmlContainer}>
-              <RenderHTML
+              <MathText
                 contentWidth={contentWidth}
-                source={{ html: currentQuestion.answer || '' }}
-                tagsStyles={answerStyle}
+                html={currentQuestion.answer || ''}
+                fontSize={15}
+                lineHeight={20}
+                fontWeight="600"
               />
             </View>
           </View>
@@ -971,10 +1027,11 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
           style={styles.questionScrollView}
           contentContainerStyle={styles.questionScrollContent}
           showsVerticalScrollIndicator={true}>
-          <RenderHTML
+          <MathText
             contentWidth={contentWidth}
-            source={{ html: `大题${currentIndex + 1}/${examQuestions.length}：${mainMaterial || ''}` }}
-            tagsStyles={questionStyle}
+            html={`大题${currentIndex + 1}/${examQuestions.length}：${mainMaterial || ''}`}
+            fontSize={18}
+            lineHeight={25}
           />
         </ScrollView>
 
@@ -992,10 +1049,11 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
             return (
               <View key={currentSubIndex} style={styles.subQuestionContainer}>
                 <View style={styles.subQuestionContent}>
-                  <RenderHTML
+                  <MathText
                     contentWidth={contentWidth}
-                    source={{ html: `小题${currentSubIndex + 1}/${currentExamItems.length}：【${item.type}】${item.question || ''}` }}
-                    tagsStyles={questionStyle}
+                    html={`小题${currentSubIndex + 1}/${currentExamItems.length}：【${item.type}】${item.question || ''}`}
+                    fontSize={18}
+                    lineHeight={25}
                   />
                 </View>
 
@@ -1022,20 +1080,23 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
                             ]}
                             onPress={() => toggleSubOption(option.label, item)}
                             activeOpacity={0.7}>
-                            <Text style={[
-                              styles.optionLabel,
-                              isDarkMode && styles.textDark,
-                              showCorrect && styles.optionTextCorrect,
-                            ]}>
-                              {option.label}.
-                            </Text>
-                            <Text style={[
-                              styles.optionContent,
-                              isDarkMode && styles.textDark,
-                              showCorrect && styles.optionTextCorrect,
-                            ]}>
-                              {option.content}
-                            </Text>
+                            <View style={styles.optionLabelContainer}>
+                              <Text style={[
+                                styles.optionLabel,
+                                isDarkMode && styles.textDark,
+                                showCorrect && styles.optionTextCorrect,
+                              ]}>
+                                {option.label}.
+                              </Text>
+                            </View>
+                            <View style={styles.optionContentContainer}>
+                              <MathText
+                                contentWidth={contentWidth - 80}
+                                html={option.content}
+                                fontSize={18}
+                                lineHeight={22}
+                              />
+                            </View>
                             {showCorrect && (
                               <Text style={styles.optionIcon}>✓</Text>
                             )}
@@ -1061,21 +1122,23 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
 
                 {item.explain && (item.type !== '主观题' || showSubjectiveAnswer) && (
                   <View style={styles.analysisSection}>
-                    <RenderHTML
+                    <MathText
                       contentWidth={contentWidth}
-                      source={{ html: "解析:" + item.explain }}
-                      tagsStyles={explainStyle}
+                      html={"解析:" + item.explain}
+                      fontSize={14}
+                      lineHeight={20}
                     />
                   </View>
                 )}
 
                 {item.answer && (item.type !== '主观题' || showSubjectiveAnswer) && (
                   <View style={styles.questionSection}>
-
-                    <RenderHTML
+                    <MathText
                       contentWidth={contentWidth}
-                      source={{ html: "答案:" + item.answer }}
-                      tagsStyles={answerStyle}
+                      html={"答案:" + item.answer}
+                      fontSize={15}
+                      lineHeight={20}
+                      fontWeight="600"
                     />
                   </View>
                 )}
@@ -1087,8 +1150,162 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
     );
   };
 
+  // 清除手写板
+  const clearHandwriting = () => {
+    setHandwritingPaths([]);
+    setCurrentPath([]);
+  };
+
+  // 撤销上一笔
+  const undoHandwriting = () => {
+    setHandwritingPaths(prev => prev.slice(0, -1));
+  };
+
+  // 将点数组转换为平滑的贝塞尔曲线 SVG 路径
+  const createSmoothPath = (points: any[]) => {
+    if (points.length === 0) return '';
+    if (points.length === 1) {
+      // 单点绘制为小圆
+      return `M ${points[0].x} ${points[0].y} L ${points[0].x} ${points[0].y}`;
+    }
+    
+    let path = `M ${points[0].x} ${points[0].y}`;
+    
+    if (points.length === 2) {
+      // 两点绘制为直线
+      path += ` L ${points[1].x} ${points[1].y}`;
+      return path;
+    }
+    
+    // 使用二次贝塞尔曲线平滑连接点
+    for (let i = 1; i < points.length - 1; i++) {
+      const curr = points[i];
+      const next = points[i + 1];
+      const midX = (curr.x + next.x) / 2;
+      const midY = (curr.y + next.y) / 2;
+      
+      // Q 控制点x 控制点y 终点x 终点y
+      path += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
+    }
+    
+    // 连接到最后一个点
+    const lastPoint = points[points.length - 1];
+    const secondLastPoint = points[points.length - 2];
+    path += ` Q ${secondLastPoint.x} ${secondLastPoint.y} ${lastPoint.x} ${lastPoint.y}`;
+    
+    return path;
+  };
+
   return (
     <View style={[styles.container, isDarkMode && styles.containerDark]}>
+      {/* 手写板弹窗 */}
+      <Modal
+        visible={showHandwriting}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => setShowHandwriting(false)}>
+        <View style={[styles.handwritingModalContainer, isDarkMode && styles.handwritingModalContainerDark]}>
+          <View style={[styles.handwritingFullscreen, isDarkMode && styles.handwritingFullscreenDark]}>
+            {/* 手写板头部 */}
+            <View style={[styles.handwritingHeader, isDarkMode && styles.handwritingHeaderDark]}>
+              <Text style={[styles.handwritingTitle, isDarkMode && styles.textDark]}>手写板</Text>
+              <TouchableOpacity
+                style={styles.handwritingCloseButton}
+                onPress={() => setShowHandwriting(false)}>
+                <Text style={styles.handwritingCloseButtonText}>关闭</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 手写区域 */}
+            <View 
+              style={styles.handwritingCanvas}
+              {...handwritingPanResponder.panHandlers}>
+              <Svg style={StyleSheet.absoluteFill}>
+                {/* 绘制已完成的路径 */}
+                {handwritingPaths.map((path, pathIndex) => (
+                  <Path
+                    key={`path-${pathIndex}`}
+                    d={createSmoothPath(path.points)}
+                    stroke={path.color}
+                    strokeWidth={path.width}
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ))}
+                {/* 绘制当前路径 */}
+                {currentPath.length > 0 && (
+                  <Path
+                    d={createSmoothPath(currentPath)}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </Svg>
+            </View>
+
+            {/* 底部控制面板 - 单行布局 */}
+            <View style={[styles.handwritingBottomControls, isDarkMode && styles.handwritingBottomControlsDark]}>
+              {/* 粗细调节按钮 */}
+              <TouchableOpacity
+                style={[styles.bottomControlButton, strokeWidth === 2 && styles.bottomControlButtonActive]}
+                onPress={() => setStrokeWidth(2)}>
+                <Text style={[styles.bottomControlButtonText, strokeWidth === 2 && styles.bottomControlButtonTextActive]}>细</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bottomControlButton, strokeWidth === 5 && styles.bottomControlButtonActive]}
+                onPress={() => setStrokeWidth(5)}>
+                <Text style={[styles.bottomControlButtonText, strokeWidth === 5 && styles.bottomControlButtonTextActive]}>中</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bottomControlButton, strokeWidth === 10 && styles.bottomControlButtonActive]}
+                onPress={() => setStrokeWidth(10)}>
+                <Text style={[styles.bottomControlButtonText, strokeWidth === 10 && styles.bottomControlButtonTextActive]}>粗</Text>
+              </TouchableOpacity>
+
+              {/* 颜色选择按钮 */}
+              {[
+                { color: '#000000', name: '黑' },
+                { color: '#FF0000', name: '红' },
+                { color: '#0000FF', name: '蓝' },
+                { color: '#00AA00', name: '绿' },
+                { color: '#ffffff', name: '橡皮擦' },
+              ].map(({ color, name }) => (
+                <TouchableOpacity
+                  key={color}
+                  style={[
+                    styles.bottomColorButton,
+                    { backgroundColor: color },
+                    strokeColor === color && styles.bottomColorButtonSelected,
+                    color === '#ffffff' && styles.bottomEraserButton,
+                  ]}
+                  onPress={() => setStrokeColor(color)}>
+                  {color === '#ffffff' && (
+                    <Text style={styles.bottomEraserButtonText}>擦</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+
+              {/* 操作按钮 */}
+              <TouchableOpacity
+                style={[styles.bottomActionButton, styles.bottomUndoButton]}
+                onPress={undoHandwriting}
+                disabled={handwritingPaths.length === 0}>
+                <Text style={styles.bottomActionButtonText}>撤销</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bottomActionButton, styles.bottomClearButton]}
+                onPress={clearHandwriting}>
+                <Text style={styles.bottomActionButtonText}>清除</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Toast 提示 */}
       {toastVisible && (
         <Animated.View
@@ -1112,7 +1329,11 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
 
       {/* 底部导航按钮 */}
       <View style={[styles.navigationBar, isDarkMode && styles.navigationBarDark]}>
-
+        <TouchableOpacity
+          style={[styles.handwritingButton, isDarkMode && styles.handwritingButtonDark]}
+          onPress={() => setShowHandwriting(true)}>
+          <Text style={styles.handwritingButtonText}>手写板</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.headerBackButton, isDarkMode && styles.headerBackButtonDark]}
@@ -1453,7 +1674,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#34C759',
   },
   deleteOptionButtonText: {
-    fontSize: 12,
+    fontSize: 15,
     color: '#fff',
     fontWeight: '600',
     paddingVertical: 10,
@@ -1481,10 +1702,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#4a1a1a',
     borderColor: '#ef5350',
   },
+  optionLabelContainer: {
+    marginRight: 8,
+  },
   optionLabel: {
     fontSize: 18,
     fontWeight: '600',
     color: '#000',
+  },
+  optionContentContainer: {
+    flex: 1,
   },
   optionContent: {
     fontSize: 18,
@@ -1754,6 +1981,151 @@ const styles = StyleSheet.create({
   showAnswerButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  // 手写板样式
+  handwritingButton: {
+    minWidth: 50,
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  handwritingButtonDark: {
+    backgroundColor: '#FF9F0A',
+  },
+  handwritingButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  handwritingModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  handwritingModalContainerDark: {
+    backgroundColor: '#000',
+  },
+  handwritingFullscreen: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  handwritingFullscreenDark: {
+    backgroundColor: '#1c1c1e',
+  },
+  handwritingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f8f8f8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  handwritingHeaderDark: {
+    backgroundColor: '#2c2c2e',
+    borderBottomColor: '#444',
+  },
+  handwritingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  handwritingCloseButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#ff3b30',
+  },
+  handwritingCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  handwritingCanvas: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  // 底部控制栏样式
+  handwritingBottomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: '#f8f8f8',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    gap: 6,
+  },
+  handwritingBottomControlsDark: {
+    backgroundColor: '#2c2c2e',
+    borderTopColor: '#444',
+  },
+  bottomControlButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    minWidth: 45,
+    alignItems: 'center',
+  },
+  bottomControlButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  bottomControlButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+  },
+  bottomControlButtonTextActive: {
+    color: '#fff',
+  },
+  bottomColorButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomColorButtonSelected: {
+    borderWidth: 3,
+    borderColor: '#007AFF',
+  },
+  bottomEraserButton: {
+    borderWidth: 2,
+    borderColor: '#999',
+    borderStyle: 'dashed',
+  },
+  bottomEraserButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  bottomActionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  bottomUndoButton: {
+    backgroundColor: '#8E8E93',
+  },
+  bottomClearButton: {
+    backgroundColor: '#ff3b30',
+  },
+  bottomActionButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

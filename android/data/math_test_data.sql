@@ -1,0 +1,112 @@
+-- 数学公式测试数据示例
+-- 可以使用这些 SQL 语句向数据库中插入包含数学公式的测试题目
+
+-- 示例 1: 简单的行内公式
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>已知函数 \(f(x) = x^2 + 2x + 1\)，求 \(f(2)\) 的值。</p>',
+--   '<p>A. 5</p><p>B. 9</p><p>C. 7</p><p>D. 11</p>',
+--   '<p>B</p>',
+--   '<p>\(f(2) = 2^2 + 2 \times 2 + 1 = 4 + 4 + 1 = 9\)</p>',
+--   '单选题',
+--   '0'
+-- );
+
+-- 示例 2: 包含分数和根号的公式（选项中也有公式）
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>一元二次方程 \(ax^2 + bx + c = 0\) 的求根公式是什么？</p>',
+--   '<p>A. \(x = \frac{-b}{2a}\)</p><p>B. \(x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}\)</p><p>C. \(x = \frac{b \pm \sqrt{b^2+4ac}}{2a}\)</p><p>D. \(x = -\frac{b}{a}\)</p>',
+--   '<p>B</p>',
+--   '<p>这是一元二次方程的标准求根公式，通过配方法或求导可以得出。</p>',
+--   '单选题',
+--   '0'
+-- );
+-- 注意：每个选项中都包含了数学公式！MathText 组件会自动渲染这些公式。
+
+-- 示例 3: 包含求和符号的公式
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>计算 \(\sum_{i=1}^{100} i\) 的值是多少？</p>',
+--   '<p>A. 5000</p><p>B. 5050</p><p>C. 5100</p><p>D. 5150</p>',
+--   '<p>B</p>',
+--   '<p>利用求和公式：\(\sum_{i=1}^{n} i = \frac{n(n+1)}{2}\)，代入 \(n=100\) 得：\(\frac{100 \times 101}{2} = 5050\)</p>',
+--   '单选题',
+--   '0'
+-- );
+
+-- 示例 4: 包含积分的公式
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>计算定积分 \(\int_{0}^{\pi} \sin(x) dx\) 的值。</p>',
+--   '<p>A. 0</p><p>B. 1</p><p>C. 2</p><p>D. \(\pi\)</p>',
+--   '<p>C</p>',
+--   '<p>\(\int_{0}^{\pi} \sin(x) dx = [-\cos(x)]_{0}^{\pi} = -\cos(\pi) + \cos(0) = -(-1) + 1 = 2\)</p>',
+--   '单选题',
+--   '0'
+-- );
+
+-- 示例 5: 包含不等式的公式（用户提到的示例）
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>对于不等式 \(i(1<i<n)\)，其中 \(n=10\)，满足条件的整数 \(i\) 有多少个？</p>',
+--   '<p>A. 7个</p><p>B. 8个</p><p>C. 9个</p><p>D. 10个</p>',
+--   '<p>B</p>',
+--   '<p>由于 \(1 < i < n\)，即 \(1 < i < 10\)，整数 \(i\) 可以取 2, 3, 4, 5, 6, 7, 8, 9，共8个值。</p>',
+--   '单选题',
+--   '0'
+-- );
+
+-- 示例 6: 复杂的希腊字母和符号
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>在三角函数中，已知 \(\sin(\theta) = \frac{3}{5}\)，且 \(\theta\) 在第一象限，求 \(\cos(\theta)\) 的值。</p>',
+--   '<p>A. \(\frac{3}{5}\)</p><p>B. \(\frac{4}{5}\)</p><p>C. \(\frac{5}{3}\)</p><p>D. \(\frac{5}{4}\)</p>',
+--   '<p>B</p>',
+--   '<p>由勾股定理：\(\sin^2(\theta) + \cos^2(\theta) = 1\)<br>所以：\(\cos^2(\theta) = 1 - \sin^2(\theta) = 1 - \frac{9}{25} = \frac{16}{25}\)<br>因为 \(\theta\) 在第一象限，所以 \(\cos(\theta) = \frac{4}{5}\)</p>',
+--   '单选题',
+--   '0'
+-- );
+
+-- 示例 7: 选项中包含不同的数学表达式
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>下列哪个函数是增函数？</p>',
+--   '<p>A. \(f(x) = -x^2\)</p><p>B. \(f(x) = e^x\)</p><p>C. \(f(x) = \frac{1}{x}\)</p><p>D. \(f(x) = -\log(x)\)</p>',
+--   '<p>B</p>',
+--   '<p>指数函数 \(f(x) = e^x\) 在定义域内单调递增。</p>',
+--   '单选题',
+--   '0'
+-- );
+
+-- 示例 8: 选项中包含不等式和区间
+-- INSERT INTO question (subject_id, question, items, answer, explain, questiontype, iscollect) 
+-- VALUES (
+--   1,
+--   '<p>对于不等式 \(i(1<i<n)\)，当 \(n=5\) 时，\(i\) 的取值范围是？</p>',
+--   '<p>A. \(i \in (0, 5)\)</p><p>B. \(i \in (1, 5)\)</p><p>C. \(i \in [1, 5]\)</p><p>D. \(i \in [2, 4]\)</p>',
+--   '<p>B</p>',
+--   '<p>根据题意，\(1 < i < 5\)，所以 \(i \in (1, 5)\)。</p>',
+--   '单选题',
+--   '0'
+-- );
+
+-- 使用说明：
+-- 1. 去掉每条 INSERT 语句前的 -- 注释符号
+-- 2. 将 subject_id 改为您实际的科目ID
+-- 3. 在数据库管理工具中执行这些 SQL 语句
+-- 4. 重新打开应用，选择对应科目即可看到包含数学公式的题目
+-- 
+-- 重要提示：
+-- - 选项内容现在完全支持数学公式渲染！
+-- - 可以在选项中使用任何 LaTeX 数学表达式
+-- - MathText 组件会自动检测并渲染公式
+-- - 公式会与选项标签（A、B、C、D）正确对齐
+
