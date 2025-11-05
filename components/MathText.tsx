@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, useColorScheme, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, useColorScheme, StyleSheet, Platform } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import { WebView } from 'react-native-webview';
 
@@ -27,8 +27,8 @@ function hasMathFormula(html: string): boolean {
 }
 
 /**
- * MathText 组件
- * 自动检测内容，如果包含数学公式则使用 MathJax WebView 渲染，否则使用普通 RenderHTML
+ * MathText 组件 - 完全离线版本
+ * 直接在 WebView 中生成完整的 HTML
  */
 export default function MathText({
   html,
@@ -48,7 +48,7 @@ export default function MathText({
         color: isDarkMode ? '#fff' : '#000',
         fontSize,
         lineHeight,
-        fontWeight,
+        fontWeight: fontWeight as any,
       },
       p: {
         margin: 0,
@@ -65,88 +65,106 @@ export default function MathText({
     );
   }
 
-  // 包含数学公式，使用 WebView + MathJax 渲染
+  // 包含数学公式，使用 WebView
   const textColor = isDarkMode ? '#ffffff' : '#000000';
   const backgroundColor = isDarkMode ? '#1c1c1e' : '#ffffff';
 
-  const htmlContent = `
+  // 处理数学公式的函数
+  const processedHtml = html
+    // 先处理双美元符（块级公式），避免被单美元符匹配
+    .replace(/\$\$(.+?)\$\$/g, '<div class="math-block">$1</div>')
+    // 处理 \[ ... \] 块级公式
+    .replace(/\\\[(.+?)\\\]/g, '<div class="math-block">$1</div>')
+    // 处理单美元符（行内公式）
+    .replace(/\$(.+?)\$/g, '<span class="math-inline">$1</span>')
+    // 处理 \( ... \) 行内公式
+    .replace(/\\\((.+?)\\\)/g, '<span class="math-inline">$1</span>');
+
+  // 完整的 HTML 文档
+  const fullHtml = `
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <script type="text/javascript" async
-    src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
-  </script>
-  <script type="text/x-mathjax-config">
-    MathJax.Hub.Config({
-      tex2jax: {
-        inlineMath: [['\\\\(', '\\\\)'], ['$', '$']],
-        displayMath: [['\\\\[', '\\\\]'], ['$$', '$$']],
-        processEscapes: true
-      },
-      "HTML-CSS": {
-        scale: 100,
-        linebreaks: { automatic: true },
-        availableFonts: ["STIX", "TeX"]
-      },
-      showMathMenu: false,
-      messageStyle: "none"
-    });
-    
-    // 渲染完成后通知 React Native 调整高度
-    MathJax.Hub.Queue(function() {
-      setTimeout(function() {
-        var height = Math.max(
-          document.body.scrollHeight,
-          document.documentElement.scrollHeight,
-          document.body.offsetHeight,
-          document.documentElement.offsetHeight
-        );
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'height',
-          height: height
-        }));
-      }, 100);
-    });
-  </script>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      font-size: ${fontSize}px;
-      line-height: ${lineHeight}px;
       color: ${textColor};
       background-color: ${backgroundColor};
-      padding: 2px 4px;
-      margin: 0;
+      font-size: ${fontSize}px;
+      line-height: ${lineHeight}px;
+      font-weight: ${fontWeight};
+      padding: 4px 6px;
       overflow-x: hidden;
       word-wrap: break-word;
-      font-weight: ${fontWeight};
     }
+    
     p {
       margin: 0;
       padding: 0;
     }
-    .mjx-chtml {
-      font-size: 1em !important;
-      display: inline !important;
+    
+    /* 行内数学公式样式 */
+    .math-inline {
+      display: inline;
+      font-style: italic;
+      color: #0066cc;
+      margin: 0 2px;
+      font-family: 'Times New Roman', serif;
     }
-    .MJXc-display {
-      margin: 0 !important;
-      display: inline !important;
-    }
-    mjx-container {
-      display: inline !important;
-      margin: 0 !important;
+    
+    /* 块级数学公式样式 */
+    .math-block {
+      display: block;
+      text-align: center;
+      font-style: italic;
+      color: #0066cc;
+      margin: 12px 0;
+      padding: 8px 0;
+      font-family: 'Times New Roman', serif;
+      font-size: ${fontSize + 2}px;
     }
   </style>
 </head>
 <body>
-  ${html}
+  ${processedHtml}
+  
+  <script>
+    // 计算并发送高度
+    function sendHeight() {
+      const height = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.offsetHeight
+      );
+      
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'height',
+          height: height + 10 // 额外的边距
+        }));
+      }
+    }
+    
+    // 页面加载完成后发送高度
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', sendHeight);
+    } else {
+      sendHeight();
+    }
+    
+    // 延迟再次发送，确保渲染完成
+    setTimeout(sendHeight, 100);
+    setTimeout(sendHeight, 300);
+  </script>
 </body>
 </html>
   `.trim();
@@ -154,12 +172,13 @@ export default function MathText({
   return (
     <View style={styles.mathContainer}>
       <WebView
-        source={{ html: htmlContent }}
-        style={{ width: contentWidth, height: webViewHeight }}
+        source={{ html: fullHtml, baseUrl: 'about:blank' }}
+        style={{ width: contentWidth, height: webViewHeight, backgroundColor: 'transparent' }}
         scrollEnabled={false}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         javaScriptEnabled={true}
+        domStorageEnabled={false}
         androidLayerType="hardware"
         originWhitelist={['*']}
         scalesPageToFit={false}
@@ -167,12 +186,15 @@ export default function MathText({
           try {
             const data = JSON.parse(event.nativeEvent.data);
             if (data.type === 'height' && data.height) {
-              // 动态调整 WebView 高度，减少额外的内边距
-              setWebViewHeight(data.height);
+              setWebViewHeight(Math.ceil(data.height));
             }
           } catch (e) {
-            // 忽略解析错误
+            console.warn('[MathText] Failed to parse message:', e);
           }
+        }}
+        onError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error('[MathText] WebView Error:', nativeEvent);
         }}
       />
     </View>
@@ -184,4 +206,3 @@ const styles = StyleSheet.create({
     marginVertical: 0,
   },
 });
-
