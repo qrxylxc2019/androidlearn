@@ -1170,19 +1170,36 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
                 clearText="清除"
                 confirmText="确认"
                 webStyle={`
+                  * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                  }
                   .m-signature-pad {
                     box-shadow: none;
                     border: none;
                     background-color: ${isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+                    margin: 0;
+                    padding: 0;
                   }
                   .m-signature-pad--body {
                     border: none;
+                    margin: 0;
+                    padding: 0;
                   }
                   .m-signature-pad--footer {
                     display: none;
                   }
                   body, html {
                     background-color: ${isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                  }
+                  canvas {
+                    display: block;
+                    margin: 0;
+                    padding: 0;
                   }
                 `}
                 penColor={currentColor}
