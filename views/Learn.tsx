@@ -55,7 +55,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
 
   // 手写板相关状态 - 使用 react-native-signature-canvas
   const [showHandwriting, setShowHandwriting] = useState<boolean>(false);
-  const [currentColor, setCurrentColor] = useState<string>('#000000');
+  const [currentColor, setCurrentColor] = useState<string>('#FF0000');
   const signatureRef = useRef<any>(null);
 
   // Toast 相关状态
@@ -1161,7 +1161,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
         onRequestClose={() => setShowHandwriting(false)}>
         <View style={styles.handwritingModalContainer}>
           <View style={[styles.handwritingFullscreen, isDarkMode && styles.handwritingFullscreenDark]}>
-            <View style={styles.handwritingCanvas}>
+            <View style={[styles.handwritingCanvas, { opacity: 0.2 }]}>
               <SignatureCanvas
                 ref={signatureRef}
                 onEnd={handleSignature}
@@ -1228,7 +1228,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
 
               {/* 操作按钮 */}
               <TouchableOpacity
-                style={[styles.bottomActionButton, styles.bottomClearButton]}
+                style={[styles.handwritingCloseButton, styles.bottomClearButton]}
                 onPress={handleClear}>
                 <Text style={styles.bottomActionButtonText}>清除</Text>
               </TouchableOpacity>
@@ -1944,7 +1944,6 @@ const styles = StyleSheet.create({
   handwritingFullscreen: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.5)', // 半透明白色
-    margin: 20,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -1961,6 +1960,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: '#ff3b30',
+    marginLeft: 'auto', // 将按钮推到最右侧
   },
   handwritingCloseButtonText: {
     color: '#fff',
@@ -1979,7 +1979,7 @@ const styles = StyleSheet.create({
   handwritingBottomControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 5,
     paddingHorizontal: 12,
     backgroundColor: '#f8f8f8',
     borderTopWidth: 1,
@@ -1991,8 +1991,8 @@ const styles = StyleSheet.create({
     borderTopColor: '#444',
   },
   bottomColorButton: {
-    width: 45,
-    height: 45,
+    width: 39,
+    height: 39,
     borderRadius: 22.5,
     borderWidth: 2,
     borderColor: '#e0e0e0',
@@ -2012,6 +2012,7 @@ const styles = StyleSheet.create({
   },
   bottomClearButton: {
     backgroundColor: '#ff3b30',
+    marginLeft: 0, // 确保清除按钮保持在左侧
   },
   bottomActionButtonText: {
     color: '#fff',
