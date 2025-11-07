@@ -27,8 +27,8 @@ function hasMathFormula(html: string): boolean {
 }
 
 /**
- * MathText 组件 - 完全离线版本
- * 直接在 WebView 中生成完整的 HTML
+ * MathText 组件 - 使用 MathJax 渲染数学公式
+ * 直接在 WebView 中生成完整的 HTML，集成 MathJax CDN
  */
 export default function MathText({
   html,
@@ -65,28 +65,44 @@ export default function MathText({
     );
   }
 
-  // 包含数学公式，使用 WebView
+  // 包含数学公式，使用 WebView + MathJax
   const textColor = isDarkMode ? '#ffffff' : '#000000';
   const backgroundColor = isDarkMode ? '#1c1c1e' : '#ffffff';
 
-  // 处理数学公式的函数
-  const processedHtml = html
-    // 先处理双美元符（块级公式），避免被单美元符匹配
-    .replace(/\$\$(.+?)\$\$/g, '<div class="math-block">$1</div>')
-    // 处理 \[ ... \] 块级公式
-    .replace(/\\\[(.+?)\\\]/g, '<div class="math-block">$1</div>')
-    // 处理单美元符（行内公式）
-    .replace(/\$(.+?)\$/g, '<span class="math-inline">$1</span>')
-    // 处理 \( ... \) 行内公式
-    .replace(/\\\((.+?)\\\)/g, '<span class="math-inline">$1</span>');
-
-  // 完整的 HTML 文档
+  // 使用本地 MathJax 文件的完整 HTML 文档
   const fullHtml = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- MathJax 配置 -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\\\(', '\\\\)'], ['$', '$']],
+        displayMath: [['\\\\[', '\\\\]'], ['$$', '$$']],
+        processEscapes: true,
+        processEnvironments: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+      },
+      startup: {
+        pageReady: function() {
+          return MathJax.startup.defaultPageReady().then(function() {
+            console.log('MathJax rendering complete');
+            sendHeight();
+          });
+        }
+      }
+    };
+  </script>
+  
+  <!-- MathJax 库 (本地文件) -->
+  <script src="file:///android_asset/jax.js"></script>
+  
   <style>
     * {
       margin: 0;
@@ -111,47 +127,39 @@ export default function MathText({
       padding: 0;
     }
     
-    /* 行内数学公式样式 */
-    .math-inline {
-      display: inline;
-      font-style: italic;
-      color: #0066cc;
-      margin: 0 2px;
-      font-family: 'Times New Roman', serif;
+    /* MathJax 渲染的公式样式 */
+    .MathJax {
+      font-size: 1.1em !important;
     }
     
-    /* 块级数学公式样式 */
-    .math-block {
-      display: block;
+    .MathJax_Display {
+      margin: 20px 0 !important;
       text-align: center;
-      font-style: italic;
-      color: #0066cc;
-      margin: 12px 0;
-      padding: 8px 0;
-      font-family: 'Times New Roman', serif;
-      font-size: ${fontSize + 2}px;
     }
   </style>
 </head>
 <body>
-  ${processedHtml}
+  ${html}
   
   <script>
     // 计算并发送高度
     function sendHeight() {
-      const height = Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight,
-        document.body.offsetHeight,
-        document.documentElement.offsetHeight
-      );
-      
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'height',
-          height: height + 10 // 额外的边距
-        }));
-      }
+      // 延迟一点，确保 MathJax 渲染完成
+      setTimeout(function() {
+        const height = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.offsetHeight
+        );
+        
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'height',
+            height: height + 10 // 额外的边距
+          }));
+        }
+      }, 100);
     }
     
     // 页面加载完成后发送高度
@@ -161,9 +169,10 @@ export default function MathText({
       sendHeight();
     }
     
-    // 延迟再次发送，确保渲染完成
-    setTimeout(sendHeight, 100);
-    setTimeout(sendHeight, 300);
+    // 延迟再次发送，确保 MathJax 渲染完成
+    setTimeout(sendHeight, 500);
+    setTimeout(sendHeight, 1000);
+    setTimeout(sendHeight, 1500);
   </script>
 </body>
 </html>

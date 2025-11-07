@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import LinearGradient from 'react-native-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
+import SignatureCanvas from 'react-native-signature-canvas';
 import { Question, Option, Subject, ExamQuestion, ExamItem, SubQuestion } from '../types';
 import MathText from '../components/MathText';
 
@@ -53,13 +53,10 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   const [isSubAnswerSubmitted, setIsSubAnswerSubmitted] = useState<boolean>(false);
   const [showSubjectiveAnswer, setShowSubjectiveAnswer] = useState<boolean>(false);
 
-  // 手写板相关状态
+  // 手写板相关状态 - 使用 react-native-signature-canvas
   const [showHandwriting, setShowHandwriting] = useState<boolean>(false);
-  const [handwritingPaths, setHandwritingPaths] = useState<any[]>([]);
-  const [currentPath, setCurrentPath] = useState<any[]>([]);
-  const [strokeWidth, setStrokeWidth] = useState<number>(5);
-  const [strokeColor, setStrokeColor] = useState<string>('#000000');
-  const isDrawingRef = useRef<boolean>(false);
+  const [currentColor, setCurrentColor] = useState<string>('#000000');
+  const signatureRef = useRef<any>(null);
 
   // Toast 相关状态
   const [toastVisible, setToastVisible] = useState<boolean>(false);
@@ -129,45 +126,28 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
     currentPositionRef.current = dividerPosition;
   }, [dividerPosition]);
 
-  // 手写板的 PanResponder
-  const handwritingPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        const { locationX, locationY } = evt.nativeEvent;
-        isDrawingRef.current = true;
-        setCurrentPath([{ x: locationX, y: locationY, timestamp: Date.now() }]);
-      },
-      onPanResponderMove: (evt) => {
-        if (!isDrawingRef.current) return;
-        const { locationX, locationY } = evt.nativeEvent;
-        setCurrentPath(prev => [...prev, { x: locationX, y: locationY, timestamp: Date.now() }]);
-      },
-      onPanResponderRelease: () => {
-        isDrawingRef.current = false;
-        if (currentPath.length > 0) {
-          setHandwritingPaths(prev => [...prev, { 
-            points: currentPath, 
-            color: strokeColor, 
-            width: strokeWidth 
-          }]);
-          setCurrentPath([]);
-        }
-      },
-      onPanResponderTerminate: () => {
-        isDrawingRef.current = false;
-        if (currentPath.length > 0) {
-          setHandwritingPaths(prev => [...prev, { 
-            points: currentPath, 
-            color: strokeColor, 
-            width: strokeWidth 
-          }]);
-          setCurrentPath([]);
-        }
-      },
-    })
-  ).current;
+  // 手写板控制函数 - 使用 react-native-signature-canvas
+  const handleClear = () => {
+    signatureRef.current?.clearSignature();
+  };
+
+  const handleChangeColor = (color: string) => {
+    setCurrentColor(color);
+    // 通过重新设置样式来改变颜色
+    if (signatureRef.current) {
+      signatureRef.current.changePenColor(color);
+    }
+  };
+
+  // SignatureCanvas 回调
+  const handleSignature = (signature?: string) => {
+    // 签名完成后的回调（可选）
+    console.log('Signature:', signature);
+  };
+
+  const handleEmpty = (signature?: string) => {
+    console.log('Canvas is empty');
+  };
 
   useEffect(() => {
     loadQuestions();
@@ -921,58 +901,78 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
                     isSingle ? (isSelected && isCorrectOption) : isCorrectOption
                   );
 
+                  // B和D选项删除按钮在右侧，A和C在左侧
+                  const isDeleteButtonRight = option.label === 'B' || option.label === 'D';
+
+                  const deleteButton = (
+                    <TouchableOpacity
+                      style={[
+                        styles.deleteOptionButton,
+                        isDarkMode && styles.deleteOptionButtonDark,
+                        isDeleted && styles.deleteOptionButtonActive,
+                      ]}
+                      onPress={() => toggleDeleteOption(option.label)}
+                      activeOpacity={0.7}>
+                      <Text style={[
+                        styles.deleteOptionButtonText,
+                        isDeleted && styles.deleteOptionButtonTextActive,
+                      ]}>
+                        删除
+                      </Text>
+                    </TouchableOpacity>
+                  );
+
+                  const optionContent = (
+                    <TouchableOpacity
+                      style={[
+                        styles.optionItem,
+                        isDarkMode && styles.optionItemDark,
+                        isSelected && !showCorrect && styles.optionItemSelected,
+                        isSelected && !showCorrect && isDarkMode && styles.optionItemSelectedDark,
+                        showCorrect && styles.optionItemCorrect,
+                        isDeleted && styles.optionItemDisabled,
+                      ]}
+                      onPress={() => !isDeleted && toggleOption(option.label)}
+                      activeOpacity={0.7}
+                      disabled={isDeleted}>
+                      <View style={styles.optionLabelContainer}>
+                        <Text
+                          style={[
+                            styles.optionLabel,
+                            isDarkMode && styles.textDark,
+                            showCorrect && styles.optionTextCorrect,
+                            isDeleted && styles.optionTextDeleted,
+                          ]}>
+                          {option.label}.
+                        </Text>
+                      </View>
+                      <View style={styles.optionContentContainer}>
+                        <MathText
+                          contentWidth={contentWidth - 120}
+                          html={option.content}
+                          fontSize={19}
+                          lineHeight={20}
+                        />
+                      </View>
+                      {showCorrect && (
+                        <Text style={styles.optionIcon}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+
                   return (
                     <View key={option.label} style={styles.optionWrapper}>
-                      <TouchableOpacity
-                        style={[
-                          styles.deleteOptionButton,
-                          isDarkMode && styles.deleteOptionButtonDark,
-                          isDeleted && styles.deleteOptionButtonActive,
-                        ]}
-                        onPress={() => toggleDeleteOption(option.label)}
-                        activeOpacity={0.7}>
-                        <Text style={[
-                          styles.deleteOptionButtonText,
-                          isDeleted && styles.deleteOptionButtonTextActive,
-                        ]}>
-                          删除
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.optionItem,
-                          isDarkMode && styles.optionItemDark,
-                          isSelected && !showCorrect && styles.optionItemSelected,
-                          isSelected && !showCorrect && isDarkMode && styles.optionItemSelectedDark,
-                          showCorrect && styles.optionItemCorrect,
-                          isDeleted && styles.optionItemDisabled,
-                        ]}
-                        onPress={() => !isDeleted && toggleOption(option.label)}
-                        activeOpacity={0.7}
-                        disabled={isDeleted}>
-                        <View style={styles.optionLabelContainer}>
-                          <Text
-                            style={[
-                              styles.optionLabel,
-                              isDarkMode && styles.textDark,
-                              showCorrect && styles.optionTextCorrect,
-                              isDeleted && styles.optionTextDeleted,
-                            ]}>
-                            {option.label}.
-                          </Text>
-                        </View>
-                        <View style={styles.optionContentContainer}>
-                          <MathText
-                            contentWidth={contentWidth - 120}
-                            html={option.content}
-                            fontSize={19}
-                            lineHeight={20}
-                          />
-                        </View>
-                        {showCorrect && (
-                          <Text style={styles.optionIcon}>✓</Text>
-                        )}
-                      </TouchableOpacity>
+                      {isDeleteButtonRight ? (
+                        <>
+                          {optionContent}
+                          {deleteButton}
+                        </>
+                      ) : (
+                        <>
+                          {deleteButton}
+                          {optionContent}
+                        </>
+                      )}
                     </View>
                   );
                 })}
@@ -1150,156 +1150,75 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
     );
   };
 
-  // 清除手写板
-  const clearHandwriting = () => {
-    setHandwritingPaths([]);
-    setCurrentPath([]);
-  };
-
-  // 撤销上一笔
-  const undoHandwriting = () => {
-    setHandwritingPaths(prev => prev.slice(0, -1));
-  };
-
-  // 将点数组转换为平滑的贝塞尔曲线 SVG 路径
-  const createSmoothPath = (points: any[]) => {
-    if (points.length === 0) return '';
-    if (points.length === 1) {
-      // 单点绘制为小圆
-      return `M ${points[0].x} ${points[0].y} L ${points[0].x} ${points[0].y}`;
-    }
-    
-    let path = `M ${points[0].x} ${points[0].y}`;
-    
-    if (points.length === 2) {
-      // 两点绘制为直线
-      path += ` L ${points[1].x} ${points[1].y}`;
-      return path;
-    }
-    
-    // 使用二次贝塞尔曲线平滑连接点
-    for (let i = 1; i < points.length - 1; i++) {
-      const curr = points[i];
-      const next = points[i + 1];
-      const midX = (curr.x + next.x) / 2;
-      const midY = (curr.y + next.y) / 2;
-      
-      // Q 控制点x 控制点y 终点x 终点y
-      path += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
-    }
-    
-    // 连接到最后一个点
-    const lastPoint = points[points.length - 1];
-    const secondLastPoint = points[points.length - 2];
-    path += ` Q ${secondLastPoint.x} ${secondLastPoint.y} ${lastPoint.x} ${lastPoint.y}`;
-    
-    return path;
-  };
 
   return (
     <View style={[styles.container, isDarkMode && styles.containerDark]}>
       {/* 手写板弹窗 */}
       <Modal
         visible={showHandwriting}
-        transparent={false}
-        animationType="slide"
+        transparent={true}
+        animationType="fade"
         onRequestClose={() => setShowHandwriting(false)}>
-        <View style={[styles.handwritingModalContainer, isDarkMode && styles.handwritingModalContainerDark]}>
+        <View style={styles.handwritingModalContainer}>
           <View style={[styles.handwritingFullscreen, isDarkMode && styles.handwritingFullscreenDark]}>
-            {/* 手写板头部 */}
-            <View style={[styles.handwritingHeader, isDarkMode && styles.handwritingHeaderDark]}>
-              <Text style={[styles.handwritingTitle, isDarkMode && styles.textDark]}>手写板</Text>
-              <TouchableOpacity
-                style={styles.handwritingCloseButton}
-                onPress={() => setShowHandwriting(false)}>
-                <Text style={styles.handwritingCloseButtonText}>关闭</Text>
-              </TouchableOpacity>
+            <View style={styles.handwritingCanvas}>
+              <SignatureCanvas
+                ref={signatureRef}
+                onEnd={handleSignature}
+                onEmpty={handleEmpty}
+                descriptionText=""
+                clearText="清除"
+                confirmText="确认"
+                webStyle={`
+                  .m-signature-pad {
+                    box-shadow: none;
+                    border: none;
+                    background-color: ${isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+                  }
+                  .m-signature-pad--body {
+                    border: none;
+                  }
+                  .m-signature-pad--footer {
+                    display: none;
+                  }
+                  body, html {
+                    background-color: ${isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+                  }
+                `}
+                penColor={currentColor}
+                backgroundColor={isDarkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'}
+              />
             </View>
 
-            {/* 手写区域 */}
-            <View 
-              style={styles.handwritingCanvas}
-              {...handwritingPanResponder.panHandlers}>
-              <Svg style={StyleSheet.absoluteFill}>
-                {/* 绘制已完成的路径 */}
-                {handwritingPaths.map((path, pathIndex) => (
-                  <Path
-                    key={`path-${pathIndex}`}
-                    d={createSmoothPath(path.points)}
-                    stroke={path.color}
-                    strokeWidth={path.width}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                ))}
-                {/* 绘制当前路径 */}
-                {currentPath.length > 0 && (
-                  <Path
-                    d={createSmoothPath(currentPath)}
-                    stroke={strokeColor}
-                    strokeWidth={strokeWidth}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
-              </Svg>
-            </View>
-
-            {/* 底部控制面板 - 单行布局 */}
             <View style={[styles.handwritingBottomControls, isDarkMode && styles.handwritingBottomControlsDark]}>
-              {/* 粗细调节按钮 */}
-              <TouchableOpacity
-                style={[styles.bottomControlButton, strokeWidth === 2 && styles.bottomControlButtonActive]}
-                onPress={() => setStrokeWidth(2)}>
-                <Text style={[styles.bottomControlButtonText, strokeWidth === 2 && styles.bottomControlButtonTextActive]}>细</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.bottomControlButton, strokeWidth === 5 && styles.bottomControlButtonActive]}
-                onPress={() => setStrokeWidth(5)}>
-                <Text style={[styles.bottomControlButtonText, strokeWidth === 5 && styles.bottomControlButtonTextActive]}>中</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.bottomControlButton, strokeWidth === 10 && styles.bottomControlButtonActive]}
-                onPress={() => setStrokeWidth(10)}>
-                <Text style={[styles.bottomControlButtonText, strokeWidth === 10 && styles.bottomControlButtonTextActive]}>粗</Text>
-              </TouchableOpacity>
-
               {/* 颜色选择按钮 */}
               {[
                 { color: '#000000', name: '黑' },
                 { color: '#FF0000', name: '红' },
                 { color: '#0000FF', name: '蓝' },
                 { color: '#00AA00', name: '绿' },
-                { color: '#ffffff', name: '橡皮擦' },
               ].map(({ color, name }) => (
                 <TouchableOpacity
                   key={color}
                   style={[
                     styles.bottomColorButton,
                     { backgroundColor: color },
-                    strokeColor === color && styles.bottomColorButtonSelected,
-                    color === '#ffffff' && styles.bottomEraserButton,
+                    currentColor === color && styles.bottomColorButtonSelected,
                   ]}
-                  onPress={() => setStrokeColor(color)}>
-                  {color === '#ffffff' && (
-                    <Text style={styles.bottomEraserButtonText}>擦</Text>
-                  )}
+                  onPress={() => handleChangeColor(color)}>
                 </TouchableOpacity>
               ))}
 
               {/* 操作按钮 */}
               <TouchableOpacity
-                style={[styles.bottomActionButton, styles.bottomUndoButton]}
-                onPress={undoHandwriting}
-                disabled={handwritingPaths.length === 0}>
-                <Text style={styles.bottomActionButtonText}>撤销</Text>
+                style={[styles.bottomActionButton, styles.bottomClearButton]}
+                onPress={handleClear}>
+                <Text style={styles.bottomActionButtonText}>清除</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.bottomActionButton, styles.bottomClearButton]}
-                onPress={clearHandwriting}>
-                <Text style={styles.bottomActionButtonText}>清除</Text>
+                style={styles.handwritingCloseButton}
+                onPress={() => setShowHandwriting(false)}>
+                <Text style={styles.handwritingCloseButtonText}>关闭</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2003,31 +1922,17 @@ const styles = StyleSheet.create({
   },
   handwritingModalContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  handwritingModalContainerDark: {
-    backgroundColor: '#000',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)', // 半透明背景
   },
   handwritingFullscreen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // 半透明白色
+    margin: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   handwritingFullscreenDark: {
-    backgroundColor: '#1c1c1e',
-  },
-  handwritingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8f8f8',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  handwritingHeaderDark: {
-    backgroundColor: '#2c2c2e',
-    borderBottomColor: '#444',
+    backgroundColor: 'rgba(28, 28, 30, 0.2)', // 半透明深色
   },
   handwritingTitle: {
     fontSize: 20,
@@ -2047,85 +1952,53 @@ const styles = StyleSheet.create({
   },
   handwritingCanvas: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    overflow: 'hidden',
+    backgroundColor: 'transparent', // 透明背景，继承父容器的半透明
+    padding:0
   },
-  // 底部控制栏样式
+  handwritingCanvasDark: {
+    backgroundColor: 'transparent',
+  },
+  // 底部控制栏样式 - 参考 Vue 版本
   handwritingBottomControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     backgroundColor: '#f8f8f8',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
-    gap: 6,
+    gap: 10,
   },
   handwritingBottomControlsDark: {
     backgroundColor: '#2c2c2e',
     borderTopColor: '#444',
   },
-  bottomControlButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    minWidth: 45,
-    alignItems: 'center',
-  },
-  bottomControlButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  bottomControlButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-  },
-  bottomControlButtonTextActive: {
-    color: '#fff',
-  },
   bottomColorButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
     borderWidth: 2,
     borderColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
   },
   bottomColorButtonSelected: {
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: '#007AFF',
   },
-  bottomEraserButton: {
-    borderWidth: 2,
-    borderColor: '#999',
-    borderStyle: 'dashed',
-  },
-  bottomEraserButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666',
-  },
   bottomActionButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    minWidth: 50,
+    minWidth: 60,
     alignItems: 'center',
-  },
-  bottomUndoButton: {
-    backgroundColor: '#8E8E93',
   },
   bottomClearButton: {
     backgroundColor: '#ff3b30',
   },
   bottomActionButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
 });
