@@ -39,7 +39,14 @@ export default function MathText({
 }: MathTextProps) {
   const isDarkMode = useColorScheme() === 'dark';
   const containsMath = hasMathFormula(html);
-  const [webViewHeight, setWebViewHeight] = useState(20);
+  const [webViewHeight, setWebViewHeight] = useState(10);
+  const heightReceivedRef = useRef(false);
+
+  // 当 html 内容变化时，重置高度状态
+  useEffect(() => {
+    setWebViewHeight(10);
+    heightReceivedRef.current = false;
+  }, [html]);
 
   // 如果不包含数学公式，使用普通的 RenderHTML
   if (!containsMath) {
@@ -117,7 +124,7 @@ export default function MathText({
       font-size: ${fontSize}px;
       line-height: ${lineHeight}px;
       font-weight: ${fontWeight};
-      padding: 4px 6px;
+      padding: 2px 4px;
       overflow-x: hidden;
       word-wrap: break-word;
     }
@@ -129,11 +136,11 @@ export default function MathText({
     
     /* MathJax 渲染的公式样式 */
     .MathJax {
-      font-size: 1.1em !important;
+      font-size: 1.05em !important;
     }
     
     .MathJax_Display {
-      margin: 20px 0 !important;
+      margin: 12px 0 !important;
       text-align: center;
     }
   </style>
@@ -142,37 +149,39 @@ export default function MathText({
   ${html}
   
   <script>
+    let lastSentHeight = 0;
+    
     // 计算并发送高度
     function sendHeight() {
-      // 延迟一点，确保 MathJax 渲染完成
-      setTimeout(function() {
-        const height = Math.max(
-          document.body.scrollHeight,
-          document.documentElement.scrollHeight,
-          document.body.offsetHeight,
-          document.documentElement.offsetHeight
-        );
-        
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'height',
-            height: height + 10 // 额外的边距
-          }));
-        }
-      }, 100);
+      const height = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.offsetHeight
+      );
+      
+      // 只有高度变化时才发送，避免重复发送相同高度
+      if (height !== lastSentHeight && window.ReactNativeWebView) {
+        lastSentHeight = height;
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'height',
+          height: height + 8 // 适当的边距
+        }));
+      }
     }
     
     // 页面加载完成后发送高度
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', sendHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(sendHeight, 50);
+      });
     } else {
-      sendHeight();
+      setTimeout(sendHeight, 50);
     }
     
-    // 延迟再次发送，确保 MathJax 渲染完成
-    setTimeout(sendHeight, 500);
-    setTimeout(sendHeight, 1000);
-    setTimeout(sendHeight, 1500);
+    // 延迟再次发送，确保 MathJax 渲染完成（减少次数和延迟）
+    setTimeout(sendHeight, 300);
+    setTimeout(sendHeight, 600);
   </script>
 </body>
 </html>
@@ -195,7 +204,21 @@ export default function MathText({
           try {
             const data = JSON.parse(event.nativeEvent.data);
             if (data.type === 'height' && data.height) {
-              setWebViewHeight(Math.ceil(data.height));
+              // 只接受第一次有效的高度更新，避免累积
+              if (!heightReceivedRef.current) {
+                heightReceivedRef.current = true;
+                setWebViewHeight(Math.ceil(data.height));
+              } else {
+                // 如果新高度比旧高度小，也接受（可能是重新渲染）
+                const newHeight = Math.ceil(data.height);
+                setWebViewHeight(prev => {
+                  // 只有在新高度合理的情况下才更新
+                  if (newHeight < prev * 1.2) {
+                    return newHeight;
+                  }
+                  return prev;
+                });
+              }
             }
           } catch (e) {
             console.warn('[MathText] Failed to parse message:', e);
