@@ -9,6 +9,7 @@ import {
   useColorScheme,
   NativeModules,
   TextInput,
+  Vibration,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Subject } from '../types';
@@ -32,6 +33,11 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
   const [questionType, setQuestionType] = useState<string>('客观题');
 
   const questionTypes = ['客观题', '主观题'];
+
+  // 震动函数
+  const handleVibrate = () => {
+    Vibration.vibrate(50);
+  };
 
   useEffect(() => {
     loadSubjects();
@@ -61,6 +67,7 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
   };
 
   const toggleSubjectSelection = (subjectId: number) => {
+    handleVibrate();
     setSelectedSubjectIds((prev) => {
       if (prev.includes(subjectId)) {
         return prev.filter((id) => id !== subjectId);
@@ -71,6 +78,7 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
   };
 
   const handleConfirm = () => {
+    handleVibrate();
     if (selectedSubjectIds.length > 0) {
       const qCount = parseInt(questionCount) || 20;
       const rCount = parseInt(repeatCount) || 5;
@@ -123,7 +131,10 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
         </Text>
         <TouchableOpacity
           style={[styles.retryButton, isDarkMode && styles.retryButtonDark]}
-          onPress={loadSubjects}>
+          onPress={() => {
+            handleVibrate();
+            loadSubjects();
+          }}>
           <Text style={styles.retryButtonText}>重试</Text>
         </TouchableOpacity>
       </View>
@@ -146,7 +157,10 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
         {onBack && (
           <TouchableOpacity
             style={[styles.backButton, isDarkMode && styles.backButtonDark]}
-            onPress={onBack}
+            onPress={() => {
+              handleVibrate();
+              onBack();
+            }}
             activeOpacity={0.7}>
             <Text style={styles.backButtonText}>← 返回</Text>
           </TouchableOpacity>
@@ -173,6 +187,7 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
             <TouchableOpacity
               style={[styles.counterButton, isDarkMode && styles.counterButtonDark]}
               onPress={() => {
+                handleVibrate();
                 const current = parseInt(repeatCount) || 1;
                 if (current > 1) {
                   setRepeatCount(String(current - 1));
@@ -195,6 +210,7 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
             <TouchableOpacity
               style={[styles.counterButton, isDarkMode && styles.counterButtonDark]}
               onPress={() => {
+                handleVibrate();
                 const current = parseInt(repeatCount) || 1;
                 setRepeatCount(String(current + 1));
               }}
@@ -217,7 +233,10 @@ export default function SubjectList({ onSelectSubject, onStartMultiSubjectLearn,
                   isDarkMode && styles.buttonGroupItemDark,
                   questionType === type && styles.buttonGroupItemActive,
                 ]}
-                onPress={() => setQuestionType(type)}
+                onPress={() => {
+                  handleVibrate();
+                  setQuestionType(type);
+                }}
                 activeOpacity={0.7}>
                 <Text
                   style={[

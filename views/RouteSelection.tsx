@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   useColorScheme,
+  Vibration,
 } from 'react-native';
 
 interface RouteSelectionProps {
@@ -14,6 +15,11 @@ interface RouteSelectionProps {
 export default function RouteSelection({ onSelectRoute }: RouteSelectionProps) {
   const isDarkMode = useColorScheme() === 'dark';
 
+  const handlePress = (route: 'practice' | 'collection') => {
+    Vibration.vibrate(50); // 震动50毫秒
+    onSelectRoute(route);
+  };
+
   return (
     <View style={[styles.container, isDarkMode && styles.containerDark]}>
       <Text style={[styles.title, isDarkMode && styles.textDark]}>
@@ -22,14 +28,14 @@ export default function RouteSelection({ onSelectRoute }: RouteSelectionProps) {
       
       <TouchableOpacity
         style={[styles.button, styles.practiceButton]}
-        onPress={() => onSelectRoute('practice')}
+        onPress={() => handlePress('practice')}
         activeOpacity={0.7}>
         <Text style={styles.buttonText}>训练题目</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.button, styles.collectionButton]}
-        onPress={() => onSelectRoute('collection')}
+        onPress={() => handlePress('collection')}
         activeOpacity={0.7}>
         <Text style={styles.buttonText}>查看收藏</Text>
       </TouchableOpacity>

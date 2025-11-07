@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   useColorScheme,
   NativeModules,
+  Vibration,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Subject } from '../types';
@@ -24,6 +25,11 @@ export default function CollectSubject({ onSelectSubject, onBack }: CollectSubje
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 震动函数
+  const handleVibrate = () => {
+    Vibration.vibrate(50);
+  };
 
   useEffect(() => {
     loadSubjects();
@@ -56,7 +62,10 @@ export default function CollectSubject({ onSelectSubject, onBack }: CollectSubje
     return (
       <TouchableOpacity
         style={styles.subjectCardContainer}
-        onPress={() => onSelectSubject(item)}
+        onPress={() => {
+          handleVibrate();
+          onSelectSubject(item);
+        }}
         activeOpacity={0.7}>
         <LinearGradient
           colors={['#deecdd', '#c1dfc4']}
@@ -89,14 +98,17 @@ export default function CollectSubject({ onSelectSubject, onBack }: CollectSubje
     return (
       <View style={[styles.container, isDarkMode && styles.containerDark]}>
         <View style={styles.centerContent}>
-          <Text style={[styles.errorText, isDarkMode && styles.errorTextDark]}>
-            错误: {error}
-          </Text>
-          <TouchableOpacity
-            style={[styles.retryButton, isDarkMode && styles.retryButtonDark]}
-            onPress={loadSubjects}>
-            <Text style={styles.retryButtonText}>重试</Text>
-          </TouchableOpacity>
+        <Text style={[styles.errorText, isDarkMode && styles.errorTextDark]}>
+          错误: {error}
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, isDarkMode && styles.retryButtonDark]}
+          onPress={() => {
+            handleVibrate();
+            loadSubjects();
+          }}>
+          <Text style={styles.retryButtonText}>重试</Text>
+        </TouchableOpacity>
         </View>
       </View>
     );
@@ -117,7 +129,10 @@ export default function CollectSubject({ onSelectSubject, onBack }: CollectSubje
   return (
     <View style={[styles.container, isDarkMode && styles.containerDark]}>
       <View style={[styles.header, isDarkMode && styles.headerDark]}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+        <TouchableOpacity onPress={() => {
+          handleVibrate();
+          onBack();
+        }} style={styles.backButton}>
           <Text style={styles.backButtonIcon}>‹</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDarkMode && styles.textDark]}>

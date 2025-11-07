@@ -16,6 +16,7 @@ import {
   TextInput,
   PanResponder,
   Modal,
+  Vibration,
 } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import LinearGradient from 'react-native-linear-gradient';
@@ -63,6 +64,11 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   const [toastMessage, setToastMessage] = useState<string>('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const toastOpacity = useState(new Animated.Value(0))[0];
+
+  // 震动函数
+  const handleVibrate = () => {
+    Vibration.vibrate(50);
+  };
 
   // 分隔条拖动相关状态 - 用于客观题
   const [dividerPosition, setDividerPosition] = useState<number>(0.4); // 默认比例：0.4 (40%)
@@ -128,10 +134,12 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
 
   // 手写板控制函数 - 使用 react-native-signature-canvas
   const handleClear = () => {
+    handleVibrate();
     signatureRef.current?.clearSignature();
   };
 
   const handleChangeColor = (color: string) => {
+    handleVibrate();
     setCurrentColor(color);
     // 通过重新设置样式来改变颜色
     if (signatureRef.current) {
@@ -418,6 +426,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   };
 
   const toggleDeleteOption = (optionLabel: string) => {
+    handleVibrate();
     setDeletedOptions((prev) => {
       if (prev.includes(optionLabel)) {
         return prev.filter((label) => label !== optionLabel);
@@ -435,6 +444,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   };
 
   const toggleOption = (optionLabel: string) => {
+    handleVibrate();
     const question = questions[currentIndex];
     const isSingle = isSingleChoice(question);
     const correctAnswer = question.answer?.replace(/<[^>]+>/g, '').trim() || '';
@@ -494,6 +504,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
 
   // 小题选项点击处理
   const toggleSubOption = (optionLabel: string, item: ExamItem) => {
+    handleVibrate();
     const correctAnswer = item.answer?.replace(/<[^>]+>/g, '').trim() || '';
     const isSingle = item.type === '判断题' || correctAnswer.length === 1;
 
@@ -568,12 +579,14 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   };
 
   const handlePrevQuestion = () => {
+    handleVibrate();
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
     }
   };
 
   const handleNextQuestion = async () => {
+    handleVibrate();
     const maxIndex = questionType === '客观题' ? questions.length - 1 : examQuestions.length - 1;
     if (currentIndex < maxIndex) {
       const nextIndex = currentIndex + 1;
@@ -597,12 +610,14 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   };
 
   const handlePrevSubQuestion = () => {
+    handleVibrate();
     if (currentSubIndex > 0) {
       setCurrentSubIndex(currentSubIndex - 1);
     }
   };
 
   const handleNextSubQuestion = () => {
+    handleVibrate();
     if (questionType === '主观题' && currentExamQuestion) {
       const currentItems = examItems.get(currentExamQuestion.id) || [];
       if (currentSubIndex < currentItems.length - 1) {
@@ -612,6 +627,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   };
 
   const handleDeleteQuestion = async () => {
+    handleVibrate();
     const currentQuestion = questions[currentIndex];
 
     try {
@@ -642,6 +658,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   };
 
   const handleDeleteSubQuestion = () => {
+    handleVibrate();
     if (!currentExamQuestion) return;
 
     const currentItems = examItems.get(currentExamQuestion.id) || [];
@@ -683,6 +700,7 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
   };
 
   const handleToggleCollect = async () => {
+    handleVibrate();
     const currentQuestion = questions[currentIndex];
     const isCurrentlyCollected = currentQuestion.iscollect === '1';
     const newCollectStatus = isCurrentlyCollected ? '0' : '1';
@@ -733,7 +751,10 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, isDarkMode && styles.retryButtonDark]}
-            onPress={loadQuestions}>
+            onPress={() => {
+              handleVibrate();
+              loadQuestions();
+            }}>
             <Text style={styles.retryButtonText}>重试</Text>
           </TouchableOpacity>
         </View>
@@ -750,7 +771,10 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
           </Text>
           <TouchableOpacity
             style={[styles.backButton, isDarkMode && styles.backButtonDark]}
-            onPress={onBack}>
+            onPress={() => {
+              handleVibrate();
+              onBack();
+            }}>
             <Text style={styles.backButtonText}>返回科目列表</Text>
           </TouchableOpacity>
         </View>
@@ -770,7 +794,10 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
           </Text>
           <TouchableOpacity
             style={[styles.backButton, isDarkMode && styles.backButtonDark]}
-            onPress={onBack}>
+            onPress={() => {
+              handleVibrate();
+              onBack();
+            }}>
             <Text style={styles.backButtonText}>返回科目列表</Text>
           </TouchableOpacity>
         </View>
@@ -1110,7 +1137,10 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
                 {item.type === '主观题' && (
                   <TouchableOpacity
                     style={[styles.showAnswerButton, isDarkMode && styles.showAnswerButtonDark]}
-                    onPress={() => setShowSubjectiveAnswer(!showSubjectiveAnswer)}
+                    onPress={() => {
+                      handleVibrate();
+                      setShowSubjectiveAnswer(!showSubjectiveAnswer);
+                    }}
                     activeOpacity={0.7}>
                     <Text style={styles.showAnswerButtonText}>
                       {showSubjectiveAnswer ? '隐藏答案' : '显示答案'}
@@ -1234,7 +1264,10 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.handwritingCloseButton}
-                onPress={() => setShowHandwriting(false)}>
+                onPress={() => {
+                  handleVibrate();
+                  setShowHandwriting(false);
+                }}>
                 <Text style={styles.handwritingCloseButtonText}>关闭</Text>
               </TouchableOpacity>
             </View>
@@ -1267,13 +1300,19 @@ export default function Learn({ subject, subjectIds, questionCount = 20, repeatC
       <View style={[styles.navigationBar, isDarkMode && styles.navigationBarDark]}>
         <TouchableOpacity
           style={[styles.handwritingButton, isDarkMode && styles.handwritingButtonDark]}
-          onPress={() => setShowHandwriting(true)}>
+          onPress={() => {
+            handleVibrate();
+            setShowHandwriting(true);
+          }}>
           <Text style={styles.handwritingButtonText}>手写板</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.headerBackButton, isDarkMode && styles.headerBackButtonDark]}
-          onPress={onBack}>
+          onPress={() => {
+            handleVibrate();
+            onBack();
+          }}>
           <Text style={styles.headerBackButtonText}>返回</Text>
         </TouchableOpacity>
 
